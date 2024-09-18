@@ -13,12 +13,13 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 from imblearn.over_sampling import SMOTE
 
-# st.set_option('deprecation.showPyplotGlobalUse', False)
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # Fungsi untuk memuat data
 def load_data(file_path):
     data = pd.read_excel(file_path)
     return data
+
 # Fungsi untuk memecah string dan mengonversi ke bulan
 def convert_string_to_months(date_str):
     parts = date_str.split(' - ')
@@ -197,11 +198,118 @@ def evaluate_model(model, X_val, y_val):
     plt.legend(loc='lower right')
     st.pyplot()
 
-# Aplikasi Streamlit
-st.title('Klasifikasi dan Visualisasi Stunting')
+# Fungsi untuk klasifikasi status
+def stunting_status(zsTbU):
+    if zsTbU < -3:
+        status = "Sangat pendek (severely stunted)"
+    elif zsTbU > -3 and zsTbU < -2:
+        status = "Pendek (stunted)"
+    elif zsTbU > -2 and zsTbU < 3:
+        status = "Normal"
+    elif zsTbU > 3:
+        status = "Tinggi"
+    else :
+        status = "Tidak Valid"
+
+    return status
+
+def countZsTbU(TB, U, gender='Laki-Laki'):
+    """
+    Menghitung z-score tinggi badan anak berdasarkan usia dan jenis kelamin menggunakan data WHO.
+    
+    :param TB: Tinggi badan anak (cm)
+    :param U: Umur anak (bulan)
+    :param gender: Jenis kelamin anak ('Laki-Laki' atau 'Perempuan')
+    :return: Z-score untuk TB/U
+    """
+    # Tabel referensi WHO mean dan SD berdasarkan umur dan gender (contoh)
+    who_data = {
+        'Laki-Laki': {
+            24: {'mean': 87.8, 'sd': 3.44}, 
+            36: {'mean': 95.1, 'sd': 3.64}, 
+            48: {'mean': 102.0, 'sd': 3.94} 
+        },
+        'Perempuan': {
+            24: {'mean': 85.7, 'sd': 3.35}, 
+            36: {'mean': 93.9, 'sd': 3.55}, 
+            48: {'mean': 101.0, 'sd': 3.85} 
+        }
+    }
+
+    # Memastikan data untuk usia dan gender yang valid tersedia
+    if U not in who_data[gender]:
+        st.warning("Data untuk umur tersebut tidak tersedia dalam referensi WHO.")
+    
+    # Ambil mean dan sd dari tabel berdasarkan usia dan gender
+    if U != 0:
+        mean_TB_U = who_data[gender][U]['mean']
+        sd_TB_U = who_data[gender][U]['sd']
+
+        # Hitung z-score
+        z_score = (TB - mean_TB_U) / sd_TB_U
+        return z_score
+    else:
+        z_score = 0
+
+
+# Fungsi untuk deteksi dini
+def detection_stunting():
+    st.write('Deteksi Dini Stunting :')
+    #pembagian kolom
+    col1, col2 = st.columns(2)
+
+    with col1 : 
+        TB = st.number_input("Tinggi Badan (cm): ", step=1)
+    with col2 : 
+        U = st.number_input("Umur Anak (bulan) : ", step=1)
+
+    with col1 : 
+        gender = st.selectbox("Jenis Kelamin?", ("Laki-Laki", "Perempuan"),)
+    with col2 : 
+        z_score = countZsTbU(TB, U, gender)
+        if z_score != 0:
+            zsTbU = st.number_input("ZS TB/U : ", z_score, disabled=True)
+
+    with col1 : 
+        if st.button("Check Status") :
+            checkStatus = stunting_status(float(zsTbU))
+        else :
+            checkStatus = False;
+    with col2 :
+        st.text("")
+        st.text("")
+        st.text("")
+        
+    with col1:
+        st.markdown("----------------")
+    with col2:
+        st.markdown("----------------")
+
+    if checkStatus != False:
+        message = """
+        Variabel :\n
+        - Tinggi Badan Anak : """+ str(int(TB)) +""" cm\n
+        - Umur Anak : """+ str(U) +""" bulan\n
+        - Nilai ZS(TB/U) : """+str(round(zsTbU, 2))+"""
+        """
+
+        output = """
+        Deteksi Stunting :\n
+        Dengan nilai ZS(TB/U) """+str(round(zsTbU, 2))+"""\n 
+        Status Anak **"""+str(checkStatus)+ """** 
+        """
+        with col1 : 
+            st.warning(message)
+        with col2 : 
+            st.warning(output)
+    else:
+        st.warning("Klik tombol 'Check Status' untuk menampilkan hasil!")
+
+
+st.title('Aplikasi Stunting Cerdas')
 
 # Menu di sidebar
-menu = st.sidebar.selectbox('Menu', ['Classification', 'Visualization'])
+menu = st.sidebar.selectbox('Menu', ['Klasifikasi Stunting', 'Visualisasi Sebaran Zona Stunting'])
 
 # File uploader
 uploaded_file = st.sidebar.file_uploader('Upload your Excel file', type=['xlsx'])
@@ -214,8 +322,8 @@ if uploaded_file:
     smote = SMOTE(random_state=42)
     X_resampled, y_resampled = smote.fit_resample(X, y)
 
-    if menu == 'Classification':
-        st.header('Classification')
+    if menu == 'Klasifikasi Stunting':
+        st.header('Klasifikasi Stunting')
 
         # Pengaturan Hyperparameter
         n_units = st.sidebar.slider('LSTM Units', min_value=10, max_value=100, value=50)
@@ -240,7 +348,7 @@ if uploaded_file:
         # Evaluasi model
         evaluate_model(model, X_val, y_val)
 
-    elif menu == 'Visualization':
+    elif menu == 'Visualisasi Sebaran Zona Stunting':
         st.header('Visualization Data')
         st.write('Distribusi sebaran stunting:')
         data = load_data(uploaded_file)
@@ -253,4 +361,7 @@ if uploaded_file:
         visualize_class_distribution(y, y_resampled)
 
 else:
-    st.write('Please upload an Excel file to proceed.')
+    if menu == 'Klasifikasi Stunting':
+       detection_stunting()
+
+    st.write('Please upload an Excel file to more feature.')
