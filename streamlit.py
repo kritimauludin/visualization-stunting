@@ -222,19 +222,36 @@ def countZsTbU(TB, U, gender='Laki-Laki'):
     :param gender: Jenis kelamin anak ('Laki-Laki' atau 'Perempuan')
     :return: Z-score untuk TB/U
     """
-    # Tabel referensi WHO mean dan SD berdasarkan umur dan gender (contoh)
+    # Tabel referensi WHO mean dan SD berdasarkan umur dan gender
     who_data = {
         'Laki-Laki': {
-            24: {'mean': 87.8, 'sd': 3.44}, 
-            36: {'mean': 95.1, 'sd': 3.64}, 
-            48: {'mean': 102.0, 'sd': 3.94} 
+            0: {'mean': 49.9, 'sd': 1.9},
+            6: {'mean': 66.6, 'sd': 2.1},
+            12: {'mean': 76.1, 'sd': 2.4},
+            18: {'mean': 83.2, 'sd': 2.8},
+            24: {'mean': 87.8, 'sd': 3.44},
+            30: {'mean': 91.9, 'sd': 3.55},
+            36: {'mean': 95.1, 'sd': 3.64},
+            42: {'mean': 98.1, 'sd': 3.79},
+            48: {'mean': 102.0, 'sd': 3.94},
+            54: {'mean': 104.4, 'sd': 4.1},
+            60: {'mean': 107.3, 'sd': 4.3}
         },
         'Perempuan': {
-            24: {'mean': 85.7, 'sd': 3.35}, 
-            36: {'mean': 93.9, 'sd': 3.55}, 
-            48: {'mean': 101.0, 'sd': 3.85} 
+            0: {'mean': 49.1, 'sd': 1.8},
+            6: {'mean': 65.7, 'sd': 2.0},
+            12: {'mean': 75.0, 'sd': 2.3},
+            18: {'mean': 82.3, 'sd': 2.7},
+            24: {'mean': 85.7, 'sd': 3.35},
+            30: {'mean': 90.2, 'sd': 3.45},
+            36: {'mean': 93.9, 'sd': 3.55},
+            42: {'mean': 97.7, 'sd': 3.7},
+            48: {'mean': 101.0, 'sd': 3.85},
+            54: {'mean': 104.2, 'sd': 4.0},
+            60: {'mean': 106.7, 'sd': 4.2}
         }
     }
+
 
     # Memastikan data untuk usia dan gender yang valid tersedia
     if U not in who_data[gender]:
