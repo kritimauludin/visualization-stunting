@@ -8,3 +8,4 @@ imbalanced-learn
 openpyxl
 streamlit-folium
 streamlit-option-menu
+xgboost
