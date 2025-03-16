@@ -1,7 +1,10 @@
 import pickle
 import streamlit as st
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.express as px
 from streamlit_option_menu import option_menu
 import folium
 from streamlit_folium import st_folium
@@ -66,6 +69,7 @@ elif selected == "Visualisasi Data":
     st.write('Categorical plots adalah visualisasi seaborn dengan melakukan agregasi nilai per kolom yang berbentuk kategori.')
     st.image('image/categorial plot.jpg', width=700)
     st.write('Dapat diketahui dari gambar diatas, plot dilakukan pada setiap variabel berdasarkan TB/U sehingga membentuk suatu pola persebaran data pada masing-masing variabel. Pesebaran data balita yang terdiagnosis stunting rata-rata memiliki nilai yang tinggi pada variabel-variabel tersebut. Hal tersebut selaras dengan gambar correlations features, dimana variabel tersebut memiliki nilai yang besar dalam mempengaruhi balita berpotensi stunting.')
+
 elif selected == "Prediksi Stunting":
     st.title("Prediksi Stunting")
 
@@ -73,13 +77,13 @@ elif selected == "Prediksi Stunting":
     col1, col2 = st.columns(2)
 
     with col1:
-        Usia_Saat_Ukur = st.number_input('Input Usia (Bulan)', min_value=0, value=0, step=1)
+        Usia_Saat_Ukur = st.number_input('Input Usia (Bulan)', min_value=0, max_value=60, value=0, step=1)
 
     with col2:
-        Berat = st.number_input('Input Berat (kg)', min_value=0.0, value=0.0, step=0.1)
+        Berat = st.number_input('Input Berat (kg)', min_value=0.0, max_value=30.0, value=0.0, step=0.1)
 
     with col1:
-        Tinggi = st.number_input('Input Tinggi (cm)', min_value=0.0, value=0.0, step=0.1)
+        Tinggi = st.number_input('Input Tinggi (cm)', min_value=0.0, max_value=105.0, value=0.0, step=0.1)
 
     with col2:
         ZS_TB_U = st.number_input('Input ZS TB/U', min_value=-5.0, max_value=5.0, value=0.0, step=0.1)
@@ -108,95 +112,181 @@ elif selected == "Visualisasi Penyebaran":
 
     # Fungsi untuk visualisasi spasial
     def spatial_visualization(data):
-        # Pisahkan kolom Latitude dan Longitude
         data['lat'] = pd.to_numeric(data['Latitude'], errors='coerce')
         data['lon'] = pd.to_numeric(data['Longitude'], errors='coerce')
-
-        # Hapus baris dengan nilai latitude atau longitude yang tidak valid
         data = data.dropna(subset=['lat', 'lon'])
-
-        # Konversi kolom Tanggal Pengukuran menjadi format datetime
         data['date'] = pd.to_datetime(data['Tanggal Pengukuran'], errors='coerce')
-
-        # Filter data untuk baris di mana 'TB/U' yang termasuk status 'Pendek' atau 'Sangat Pendek'
+        
         filtered_data = data[data['TB/U'].isin(['Pendek', 'Sangat Pendek'])]
-
-        # Hitung frekuensi kemunculan setiap kombinasi lat dan lon
         location_counts = filtered_data.groupby(['lat', 'lon']).size().reset_index(name='count')
-
-        # Hitung jumlah status 'Pendek' dan 'Sangat Pendek' di setiap lokasi
         status_counts = filtered_data.groupby(['lat', 'lon', 'TB/U']).size().unstack(fill_value=0)
-
-        # Ambil desa dan puskesmas yang unik sebagai fungsi untuk setiap lokasi (lat, lon)
         location_info = filtered_data.groupby(['lat', 'lon']).agg({
             'Desa/Kel': 'first',
             'Pukesmas': 'first'
         }).reset_index()
-
-        # Buat peta dasar dengan folium
+        
         m = folium.Map(location=[filtered_data['lat'].mean(), filtered_data['lon'].mean()], zoom_start=12)
-
-        # Tambahkan lingkaran untuk status 'Pendek' (merah) dan 'Sangat Pendek' (biru)
+        
         for (lat, lon), status in status_counts.iterrows():
-            count_pendek = status.get('Pendek', 0)
-            count_sangat_pendek = status.get('Sangat Pendek', 0)
-
-            # Pastikan nilai yang digunakan adalah tipe int biasa (bukan int64)
-            count_pendek = int(count_pendek)
-            count_sangat_pendek = int(count_sangat_pendek)
-
-            # Cari desa dan puskesmas untuk lokasi tersebut
+            count_pendek = int(status.get('Pendek', 0))
+            count_sangat_pendek = int(status.get('Sangat Pendek', 0))
             location_row = location_info[(location_info['lat'] == lat) & (location_info['lon'] == lon)]
             desa = location_row['Desa/Kel'].values[0]
             pukesmas = location_row['Pukesmas'].values[0]
 
-            # Tambahkan lingkaran untuk 'Pendek' dengan warna merah
             if count_pendek > 0:
                 folium.Circle(
                     location=(lat, lon),
-                    radius=count_pendek * 10,  # Radius yang ditentukan oleh jumlah 'Pendek'
+                    radius=count_pendek * 10,
                     color='red',
                     fill=True,
                     fill_color='red',
                     fill_opacity=0.6
                 ).add_to(m)
 
-            # Tambahkan lingkaran untuk 'Sangat Pendek' dengan warna biru
             if count_sangat_pendek > 0:
                 folium.Circle(
                     location=(lat, lon),
-                    radius=count_sangat_pendek * 10,  # Radius yang ditentukan oleh jumlah 'Sangat Pendek'
+                    radius=count_sangat_pendek * 10,
                     color='blue',
                     fill=True,
                     fill_color='blue',
                     fill_opacity=0.6
                 ).add_to(m)
-
-            # Buat teks popup dengan lokasi, desa, puskesmas, dan jumlah pendek dang sangat pendek
+            
             popup_text = f"""
-            *Lokasi* :({lat}, {lon}),
-            *Desa* : {desa},
-            *Pukesmas* : {pukesmas},
-            *Jumlah Pendek* : {count_pendek},
-            *Jumlah Sangat Pendek* : {count_sangat_pendek},
-            *Total* : {count_pendek + count_sangat_pendek}
+            Lokasi: ({lat}, {lon}) | 
+            Desa: {desa} | 
+            Puskesmas: {pukesmas} | 
+            Pendek: {count_pendek} | 
+            Sangat Pendek: {count_sangat_pendek} | 
+            Total: {count_pendek + count_sangat_pendek}
             """
-
-            # Tambahkan marker dengan informasi popup
             folium.Marker(
                 location=(lat, lon),
-                popup=folium.Popup(popup_text, parse_html=True),
+                popup=folium.Popup(popup_text,  max_width=450, parse_html=True),
                 icon=folium.Icon(color='green')
             ).add_to(m)
-
-        # Tampilkan peta dalam Streamlit
+        
         st_folium(m, width=700, height=500)
 
-    # Upload file untuk visualisasi penyebaran
+        st.markdown("---")
+
+    # Fungsi untuk menampilkan diagram batang berdasarkan Tahun
+    def line_chart(data):
+        if 'Tahun' in data.columns and 'Kec' in data.columns:
+            # Hitung jumlah total kasus per tahun
+            total_per_year = data.groupby('Tahun').size().reset_index(name='Total Kasus')
+            # Hitung jumlah kasus per tahun dan kecamatan
+            count_data = data.groupby(['Tahun', 'Kec']).size().reset_index(name='Jumlah Kasus')
+            # Gabungkan dengan total per tahun untuk menghitung persentase
+            count_data = count_data.merge(total_per_year, on='Tahun')
+            count_data['Persentase Kasus'] = (count_data['Jumlah Kasus'] / count_data['Total Kasus']) * 100
+
+            # Buat diagram garis dengan warna berdasarkan Kecamatan
+            fig = px.line(
+                count_data, x='Tahun', y='Persentase Kasus', color='Kec',
+                title='Prevalensi Stunting di Kota Bogor per Kecamatan',
+                labels={'Tahun': 'Tahun', 'Persentase Kasus': 'Persentase (%)', 'Kec': 'Kec'},
+                markers=True
+            )
+            fig.update_xaxes(tickmode='linear', tickformat='d')
+            fig.update_layout(yaxis_tickformat=".2f")  
+            st.plotly_chart(fig)
+
+            pivot_table = count_data.pivot(index='Tahun', columns='Kec', values='Persentase Kasus').fillna(0)
+            pivot_table['Total Kasus'] = total_per_year.set_index('Tahun')['Total Kasus'].astype(int)  
+            pivot_table.index = pivot_table.index.astype(int)
+            pivot_table = pivot_table.T
+            pivot_table_display = pivot_table.applymap(lambda x: f"{x:.2f}%" if isinstance(x, float) else f"{x:,}")
+            pivot_table_display.loc['Total Kasus'] = pivot_table.loc['Total Kasus'].apply(lambda x: f"{int(x):,}")
+            st.dataframe(pivot_table_display)
+
+        else:
+            st.write("Kolom 'Tahun' atau 'Kecamatan' tidak ditemukan dalam dataset.")
+
+        st.markdown("---")
+
+# Fungsi untuk menampilkan diagram batang dengan filter kategori
+    def bar_chart(data):
+        if 'Tahun' in data.columns and 'Desa/Kel' in data.columns and 'TB/U' in data.columns:
+            # Pilihan tahun
+            tahun_options = sorted(data['Tahun'].unique())
+            selected_tahun = st.selectbox("Pilih Tahun:", tahun_options, index=len(tahun_options)-1)
+
+            # Filter berdasarkan tahun
+            data = data[data['Tahun'] == selected_tahun]
+
+            # Pilihan kategori
+            kategori_options = ['Pendek', 'Sangat Pendek']
+            selected_kategori = st.multiselect("Pilih Kategori Stunting:", kategori_options, default=kategori_options)
+
+            # Filter berdasarkan kategori
+            filtered_data = data[data['TB/U'].isin(selected_kategori)]
+
+            if filtered_data.empty:
+                st.write("Tidak ada data yang tersedia untuk filter yang dipilih.")
+                return
+
+            # Hitung jumlah kasus per Desa/Kel
+            count_data = filtered_data.groupby(['Desa/Kel', 'TB/U']).size().reset_index(name='Jumlah Kasus')
+
+            # Warna kategori
+            color_map = {'Pendek': 'red', 'Sangat Pendek': 'blue'}
+
+            # Buat diagram batang
+            fig = px.bar(
+                count_data,
+                x='Desa/Kel',  
+                y='Jumlah Kasus',  
+                color='TB/U',  
+                title=f'Jumlah Kasus Stunting per Desa/Kelurahan (Tahun {selected_tahun})',
+                labels={'Jumlah Kasus': 'Jumlah Kasus', 'Desa/Kel': 'Desa/Kelurahan', 'TB/U': 'Kategori'},
+                color_discrete_map=color_map,
+                text_auto=True  
+            )
+
+            # Atur tampilan agar lebih optimal
+            fig.update_xaxes(
+                categoryorder="total descending",
+                tickangle=-45,  
+                tickfont=dict(size=6),  
+                automargin=True
+            )
+            fig.update_layout(width=2000, height=800)  
+
+            st.plotly_chart(fig)
+
+        else:
+            st.write("Kolom 'Tahun', 'Desa/Kel', atau 'TB/U' tidak ditemukan dalam dataset.")
+
+# Fungsi untuk memuat data dari file Excel
+    def load_data(file_path):
+        return pd.read_excel(file_path)
+
+# Inisialisasi session state jika belum ada
+    if 'data' not in st.session_state:
+        st.session_state['data'] = None
+
+    if 'uploaded_file' not in st.session_state:
+        st.session_state['uploaded_file'] = None
+
+# Upload file untuk visualisasi penyebaran
     uploaded_file = st.file_uploader("Upload file data stunting", type=['xlsx'])
 
-    if uploaded_file:
-        data = load_data(uploaded_file)
+# Jika pengguna mengunggah file, simpan ke session_state dan load datanya
+    if uploaded_file is not None:
+        st.session_state['uploaded_file'] = uploaded_file
+        st.session_state['data'] = load_data(uploaded_file)
+
+# Gunakan data dari session_state jika sudah ada
+    data = st.session_state['data']
+
+# Pastikan data tidak None sebelum digunakan
+    if data is not None:
+        st.write("✅ File telah diunggah dan diproses!")
         spatial_visualization(data)
+        line_chart(data)
+        bar_chart(data)
     else:
-        st.write("Silakan upload file data terlebih dahulu.")
+        st.write("❌ Silakan upload file data terlebih dahulu.")
