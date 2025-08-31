@@ -1,0 +1,12 @@
+streamlit
+pandas
+matplotlib
+seaborn
+scikit-learn
+tensorflow
+imbalanced-learn
+openpyxl
+streamlit-folium
+streamlit-option-menu
+xgboost
+plotly
