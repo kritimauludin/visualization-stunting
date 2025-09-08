@@ -72,7 +72,7 @@ elif selected == "Visualisasi Data":
 
 
 elif selected == "Klasifikasi Stunting":
-    st.title("Klasifikasi Stunting (Pendek dan Sangat Pendek)")
+    st.title("Klasifikasi Stunting")
 
 # Function to calculate the Z-score for stunting prediction (TB/U formula)
     who_reference_data = {
@@ -220,11 +220,11 @@ elif selected == "Klasifikasi Stunting":
 # Define the stunting diagnosis based on the Z-score
     def diagnose_stunting(z_score):
         if z_score < -3:
-            return 'Sangat Pendek'  # Severe Stunting (Z < -3)
+            return 'Severely Stunting/Sangat Pendek'  # Severe Stunting (Z < -3)
         elif z_score < -2:
-            return 'Pendek'  # Stunting (Z between -2 and -3)
+            return 'Stunting/Pendek'  # Stunting (Z between -2 and -3)
         else:
-            return 'Tidak Stunting'  # Normal Growth (Z >= -2)
+            return 'Tidak Stunting/Normal'  # Normal Growth (Z >= -2)
 
 # Split the page into two columns
     col1, col2 = st.columns(2)
@@ -237,7 +237,7 @@ elif selected == "Klasifikasi Stunting":
         gender = st.selectbox('Pilih Jenis Kelamin', ['Laki-laki', 'Perempuan'])
 
     with col1:
-        tinggi = st.number_input('Input Tinggi (cm)', min_value=0.0, max_value=105.0, value=0.0, step=0.1)
+        tinggi = st.number_input('Input Tinggi (cm)', min_value=0.0, max_value=119.5, value=0.0, step=0.1)
 
 # Code for prediction
     stunting_diagnosis = ''
